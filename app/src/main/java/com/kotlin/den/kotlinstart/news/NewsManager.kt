@@ -1,27 +1,31 @@
 package com.kotlin.den.kotlinstart.news
 
+import com.kotlin.den.kotlinstart.api.RestApi
 import com.kotlin.den.kotlinstart.common.RedditNewsItem
 import rx.Observable
 
 /**
  * Created by Denis on 29-Jan-17.
  */
-class NewsManager() {
+class NewsManager(private val api: RestApi = RestApi()) {
 
-    fun getNews(after: String): Observable<List<RedditNewsItem>> {
+    fun getNews(limit: String = "10"): Observable<List<RedditNewsItem>> {
         return Observable.create {
             subscriber ->
-            val news = (1..10).map {
-                RedditNewsItem(
-                        "author$it",
-                        "Title $it",
-                        it,                                             // number of comments
-                        1500000000L - it * 200,                         // time
-                        "http://lorempixel.com/200/200/technics/$it",   // image url
-                        "url"
-                )
+            val callResponse = api.getNews("", limit)
+            val response = callResponse.execute()
+
+            if (response.isSuccessful) {
+                val news = response.body().data.children.map {
+                    val item = it.data
+                    RedditNewsItem(item.author, item.title, item.num_comments,
+                            item.created, item.thumbnail, item.url)
+                }
+                subscriber.onNext(news)
+                subscriber.onCompleted()
+            } else {
+                subscriber.onError(Throwable(response.message()))
             }
-            subscriber.onNext(news)
         }
     }
 }
